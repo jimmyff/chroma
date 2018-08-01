@@ -1,0 +1,15 @@
+name: chroma
+description: A simple library for manipulating colors in Dart.
+version: 0.1.0
+homepage: https://github.com/jimmyff/chroma
+author: Jimmy Forrester-Fellowes <jimmyff@jimmyff.uk>
+
+environment:
+  sdk: '>=1.24.3 <3.0.0'
+
+dependencies:
+  vector_math: ^2.0.8
+  logging: any
+
+dev_dependencies:
+  test: any

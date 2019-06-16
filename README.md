@@ -1,10 +1,10 @@
 # Chroma
 
-[![Build Status](https://travis-ci.org/jimmyff/chroma.svg?branch=master)]((https://travis-ci.org/jimmyff/chroma))
+[![Build Status](https://travis-ci.org/jimmyff/chroma.svg?branch=master)](https://travis-ci.org/jimmyff/chroma)
 [![Pub Package Version](https://img.shields.io/pub/v/chroma.svg)](https://pub.dartlang.org/packages/chroma)
 [![Latest Dartdocs](https://img.shields.io/badge/dartdocs-latest-blue.svg)](https://pub.dartlang.org/documentation/chroma/latest)
 
-A simple library for manipulating colors in Dart.
+
 
 ## Color model classes
 
@@ -21,7 +21,6 @@ final hotPink = new RgbColor(255.0, 105.0, 180.0);
 
 // find the complementary color then convert back to RGB
 final complimentary = (hotPink.toHsl()..hue -= 180).toRgb();
-
 
 // Create from Hex
 final seaFoamGreen = new RgbColor.fromHex('#71EEB8');

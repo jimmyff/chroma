@@ -5,11 +5,12 @@ homepage: https://github.com/jimmyff/chroma
 author: Jimmy Forrester-Fellowes <jimmyff@jimmyff.uk>
 
 environment:
-  sdk: '>=1.24.3 <3.0.0'
+  sdk: ">=2.0.0 <3.0.0"
 
 dependencies:
   vector_math: ^2.0.8
   logging: any
+  image: any
 
 dev_dependencies:
   test: any

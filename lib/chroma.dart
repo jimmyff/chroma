@@ -1,1 +1,2 @@
-export 'src/color/color.dart';
+export 'color.dart';
+export 'image_palette.dart';

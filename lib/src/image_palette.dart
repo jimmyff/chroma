@@ -1,5 +1,7 @@
 import 'package:image/image.dart';
 
+import 'package:chroma/color.dart';
+
 class ImagePalette {
   final UiTheme dark;
   final UiTheme light;
@@ -27,134 +29,129 @@ class ImagePalette {
           ColorCollectionDebug(title: 'Full swatch', colors: swatch.colors));
 
     // reduce the focal point
-    final smallImageEdge = drawCircle(
+    final smallImageEdge = fillCircle(
         smallImage,
         (smallSize / 2).round(),
         (smallSize / 2).round(),
         (smallSize / 2).round(),
         Color.fromRgb(0, 0, 0));
 
-    final edgeSwatch = ScoredColors.fromImage(smallImageEdge);
+    final edgeSwatch = ScoredColors.fromImage(smallImageEdge)
+      ..removeColors((ColorRgb c) => c.toHsl().lightness == 0.0);
     if (debug)
       debugData.add(ColorCollectionDebug(
           title: 'Edge swatch', colors: edgeSwatch.colors));
 
     return ImagePalette(
-      dark: UiTheme._fromFominantColors(
-          full: swatch, edge: edgeSwatch, bgLuminosity: 0.2, fgLuminosity: 0.8),
-      light: UiTheme._fromFominantColors(
-          full: swatch, edge: edgeSwatch, bgLuminosity: 0.8, fgLuminosity: 0.2),
+      dark: UiTheme._fromDominantColors(
+          full: swatch,
+          edge: edgeSwatch,
+          bgLuminosity: 0.2,
+          fgLuminosity: 0.75),
+      light: UiTheme._fromDominantColors(
+          full: swatch,
+          edge: edgeSwatch,
+          bgLuminosity: 0.85,
+          fgLuminosity: 0.2),
       debug: debugData,
     );
   }
 }
 
+double _distanceScore(double v1, double v2, {bool wrapped = false}) =>
+    (1 - ((v1 + (wrapped ? 1.0 : 0.0)) - (v2 + (wrapped ? 1.0 : 0.0))).abs());
+
 class UiTheme {
-  final int bg;
-  final int fg;
+  final ColorRgb bg;
+  final ColorRgb fg;
 
   final List<ColorCollectionDebug> debug;
 
   UiTheme({this.bg, this.fg, this.debug});
 
-  factory UiTheme._fromFominantColors(
+  factory UiTheme._fromDominantColors(
       {ScoredColors full,
       ScoredColors edge,
-      bool debug,
+      bool debug = false,
       double bgLuminosity,
       double fgLuminosity}) {
     List<ColorCollectionDebug> debugData = [];
     Map<int, double> edgeBgScore = {};
-    var countMax = edge.colors.keys.first;
-    var minLuminosity = 30;
-    var maxLuminosity = 130;
-    edge.colors.forEach((color, count) {
-      var hsl = rgbToHsl(getRed(color), getGreen(color), getBlue(color));
-      final lum = getLuminance(color);
-      edgeBgScore[color] = (hsl[1] < 0.15 || hsl[1] > 0.85 ? 0.0 : 0.6) +
-          // who has the most
-          (count / countMax) +
-          (lum > minLuminosity && lum < maxLuminosity ? 1 : 0);
-    });
-    var edgeColorSorted = edgeBgScore.keys.toList()
-      ..sort((k1, k2) => edgeBgScore[k2].compareTo(edgeBgScore[k1]));
 
-    if (debug)
-      debugData.add(ColorCollectionDebug(
-          title: 'Edge colors scored',
-          colors: Map.fromIterables(
-              edgeColorSorted, edgeColorSorted.map((e) => edgeBgScore[e]))));
+    var bg = edge.colorsWith(
+        where: (ColorRgb c, double dominance) =>
+            c.toHsl().saturation > 0.1 &&
+            c.toHsl().luminance < 0.07 &&
+            c.toHsl().lightness > 0.05,
+        score: (ColorRgb c, double dominance) =>
+            (_distanceScore(c.toHsl().luminance, 0.05) * 2) +
+            _distanceScore(c.toHsl().lightness, 0.15) +
+            (dominance));
+    var bgColor = bg.keys.first;
+    final bgHsl = bgColor.toHsl();
+    if (bgColor.toHsl().lightness > 0.2)
+      bgColor = ColorHsl(bgHsl.hue, bgHsl.saturation, 0.2);
+    var fg = full.colorsWith(
+        where: (ColorRgb c, double dominance) =>
+            c.toHsl().saturation > 0.3 &&
+            c.toHsl().luminance > 0.2 &&
+            c.toHsl().lightness < 0.90 &&
+            c.toHsl().lightness > 0.4,
+        score: (ColorRgb c, double dominance) =>
+            _distanceScore(c.toHsl().lightness, 0.8) +
+            (_distanceScore(c.toHsl().saturation, 1) / 4) +
+            ((1 -
+                _distanceScore(c.toHsl().hue, bgColor.toHsl().hue,
+                    wrapped: true))) +
+            (dominance / 6));
 
-    var edgeColor = edgeColorSorted.first;
-    var i = 1;
-    while (getLuminance(edgeColor) > 100 && i < 6) {
-      edgeColor = _incrementLightness(edgeColorSorted.first, -(i++ * 0.1));
-    }
+    var fgColor = fg.keys.first;
+    final fgHsl = fgColor.toHsl();
+    if (fgColor.toHsl().lightness < 0.8)
+      fgColor = ColorHsl(fgHsl.hue, fgHsl.saturation, 0.8);
 
-    edgeColor = _boostSaturation(edgeColor, 0.3, ifBelow: 0.7);
-
-    if (debug)
-      debugData.add(
-          ColorCollectionDebug(title: 'Edge color', colors: {edgeColor: 1}));
-
-    // print('Updated edge color: ${_colorDebug(edgeColor)}');
-
-    var hsl =
-        rgbToHsl(getRed(edgeColor), getGreen(edgeColor), getBlue(edgeColor));
-    var idealComplimentary = Color.fromHsl(
-        hsl[0] > 0.5 ? hsl[0] - 0.5 : hsl[0] + 0.5, hsl[1], hsl[2]);
-    // idealComplimentary = _adjustColor(idealComplimentary, 0.70);
-
-    idealComplimentary =
-        _boostSaturation(idealComplimentary, 0.3, ifBelow: 0.7);
-
-    for (var i = 0; i < 20; i++) {
-      if (getLuminance(idealComplimentary) < 180)
-        idealComplimentary =
-            _incrementLightness(idealComplimentary, (i++ * 0.01));
-    }
-
-    if (debug)
-      debugData.add(ColorCollectionDebug(
-          title: 'Ideal Complimentary', colors: {idealComplimentary: 1}));
-
-    var matchedFgColor = full.neuralQuantizer
-        .color(full.neuralQuantizer.lookup(idealComplimentary));
-
-    if (debug)
-      debugData.add(ColorCollectionDebug(
-          title: 'Matched Complimentary', colors: {matchedFgColor: 1}));
-
-    matchedFgColor = _boostSaturation(matchedFgColor, 0.2, ifBelow: 0.4);
-
-    for (var i = 0; i < 20; i++) {
-      if (getLuminance(matchedFgColor) < 220)
-        matchedFgColor = _incrementLightness(matchedFgColor, (i++ * 0.01));
-    }
-
-    print('bg: ${_colorDebug(edgeColor)}');
-    print('fg: ${_colorDebug(matchedFgColor)}');
-
-    if (debug)
-      debugData.add(ColorCollectionDebug(
-          title: 'Adjusted Matched Complimentary',
-          colors: {matchedFgColor: 1}));
-
-    return UiTheme(debug: debugData, fg: edgeColor, bg: matchedFgColor);
+    return UiTheme(fg: fgColor, bg: bgColor);
   }
 }
 
 class ScoredColors {
   // color + score (cullumative)
-  final Map<int, double> colors;
+  final Map<ColorRgb, double> colors;
   final NeuralQuantizer neuralQuantizer;
 
   ScoredColors({this.colors, this.neuralQuantizer});
 
+  void removeColors(bool Function(ColorRgb c) whereFunc) {
+    colors.removeWhere((key, value) => whereFunc(key));
+  }
+
+  Map<ColorRgb, double> colorsWith(
+      {double Function(ColorRgb c, double dominance) score,
+      bool Function(ColorRgb c, double dominance) where}) {
+    Map<ColorRgb, double> out = {};
+    Map<ColorRgb, double> secondary = {};
+
+    var countMax = colors.values.first;
+
+    colors.forEach((color, count) {
+      var dominance = (count / countMax);
+      if (where(color, dominance)) {
+        out[color] = score(color, dominance);
+      } else
+        secondary[color] = score(color, dominance);
+    });
+    if (out.isEmpty) out = secondary;
+
+    final sorted = out.keys.toList()
+      ..sort((c1, c2) => out[c2].compareTo(out[c1]));
+    return Map<ColorRgb, double>.fromIterables(
+        sorted, sorted.map((e) => out[e]));
+  }
+
   ScoredColors scoreLuminosity(double ideal, [double reward = 100.0]) {
     return _score(
       ideal,
-      (int c) => getLuminance(c).toDouble() / 255,
+      (ColorRgb c) => c.luminance,
       reward,
     );
   }
@@ -162,12 +159,12 @@ class ScoredColors {
   ScoredColors scoreSaturation(double ideal, [double reward = 100.0]) {
     return _score(
       ideal,
-      (int c) => rgbToHsl(getRed(c), getGreen(c), getBlue(c))[1].toDouble(),
+      (ColorRgb c) => c.toHsl().saturation,
       reward,
     );
   }
 
-  ScoredColors _score(double ideal, double Function(int) getValue,
+  ScoredColors _score(double ideal, double Function(ColorRgb) getValue,
       [double reward = 100.0]) {
     var scores = colors.values.toList();
 
@@ -183,11 +180,11 @@ class ScoredColors {
         neuralQuantizer: neuralQuantizer);
   }
 
-  factory ScoredColors.fromColors(List<int> colors) {
-    return ScoredColors(
-        colors: Map.fromIterables(
-            colors, List.generate(colors.length, (index) => 0)));
-  }
+  // factory ScoredColors.fromColors(List<int> colors) {
+  //   return ScoredColors(
+  //       colors: Map.fromIterables(
+  //           colors, List.generate(colors.length, (index) => 0)));
+  // }
 
   factory ScoredColors.fromImage(Image image) {
     const maxColors = 24;
@@ -206,13 +203,16 @@ class ScoredColors {
       }
     }
 
-    var sorted = colorCount.keys.toList()
+    final sorted = colorCount.keys.toList()
       ..sort((k1, k2) => colorCount[k2].compareTo(colorCount[k1]));
 
     return ScoredColors(
         neuralQuantizer: swatch,
         colors: Map.fromIterables(
-            sorted, sorted.map((c) => colorCount[c].toDouble())));
+            sorted.map((i) =>
+                ColorRgb(getRed(i) / 255, getGreen(i) / 255, getBlue(i) / 255)),
+            //ColorRgb.fromIntRGBA(i)),
+            sorted.map((c) => colorCount[c].toDouble())));
   }
 }
 
@@ -220,7 +220,7 @@ class ColorCollectionDebug {
   final String title;
 
   /// colors and scores
-  final Map<int, num> colors;
+  final Map<ColorRgb, num> colors;
 
   ColorCollectionDebug({this.title, this.colors});
 

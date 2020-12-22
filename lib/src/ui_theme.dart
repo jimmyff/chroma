@@ -2,20 +2,21 @@ import 'package:image/image.dart';
 
 import 'package:chroma/color.dart';
 
-class ImagePalette {
-  final UiTheme dark;
-  final UiTheme light;
-  final int dominant;
-  final List<ColorCollectionDebug> debug;
+double _distanceScore(double v1, double v2, {bool wrapped = false}) =>
+    (1 - ((v1 + (wrapped ? 1.0 : 0.0)) - (v2 + (wrapped ? 1.0 : 0.0))).abs());
 
-  ImagePalette({this.debug, this.dark, this.light, this.dominant});
+class UiTheme {
+  final ColorRgb bg;
+  final ColorRgb fg;
 
-  factory ImagePalette.fromJpg(List<int> bytes, {bool debug = false}) {
+  UiTheme({this.bg, this.fg});
+
+  factory UiTheme.fromJpg(List<int> bytes, {bool debug = false}) {
     final image = decodeJpg(bytes);
-    return ImagePalette._fromImage(image, debug: debug);
+    return UiTheme._fromImage(image);
   }
 
-  factory ImagePalette._fromImage(Image image, {bool debug = false}) {
+  factory UiTheme._fromImage(Image image) {
     const smallSize = 32;
     List<ColorCollectionDebug> debugData = [];
 
@@ -23,10 +24,6 @@ class ImagePalette {
     final smallImage = copyResize(image, width: smallSize);
 
     final swatch = ScoredColors.fromImage(smallImage);
-
-    if (debug)
-      debugData.add(
-          ColorCollectionDebug(title: 'Full swatch', colors: swatch.colors));
 
     // reduce the focal point
     final smallImageEdge = fillCircle(
@@ -38,53 +35,21 @@ class ImagePalette {
 
     final edgeSwatch = ScoredColors.fromImage(smallImageEdge)
       ..removeColors((ColorRgb c) => c.toHsl().lightness == 0.0);
-    if (debug)
-      debugData.add(ColorCollectionDebug(
-          title: 'Edge swatch', colors: edgeSwatch.colors));
 
-    return ImagePalette(
-      dark: UiTheme._fromDominantColors(
-          full: swatch,
-          edge: edgeSwatch,
-          bgLuminosity: 0.2,
-          fgLuminosity: 0.75),
-      light: UiTheme._fromDominantColors(
-          full: swatch,
-          edge: edgeSwatch,
-          bgLuminosity: 0.85,
-          fgLuminosity: 0.2),
-      debug: debugData,
-    );
+    return UiTheme._fromDominantColors(full: swatch, edge: edgeSwatch);
   }
-}
 
-double _distanceScore(double v1, double v2, {bool wrapped = false}) =>
-    (1 - ((v1 + (wrapped ? 1.0 : 0.0)) - (v2 + (wrapped ? 1.0 : 0.0))).abs());
-
-class UiTheme {
-  final ColorRgb bg;
-  final ColorRgb fg;
-
-  final List<ColorCollectionDebug> debug;
-
-  UiTheme({this.bg, this.fg, this.debug});
-
-  factory UiTheme._fromDominantColors(
-      {ScoredColors full,
-      ScoredColors edge,
-      bool debug = false,
-      double bgLuminosity,
-      double fgLuminosity}) {
+  factory UiTheme._fromDominantColors({ScoredColors full, ScoredColors edge}) {
     List<ColorCollectionDebug> debugData = [];
     Map<int, double> edgeBgScore = {};
 
     var bg = edge.colorsWith(
         where: (ColorRgb c, double dominance) =>
             c.toHsl().saturation > 0.1 &&
-            c.toHsl().luminance < 0.07 &&
-            c.toHsl().lightness > 0.05,
+            c.toHsl().luminance < 0.08 &&
+            c.toHsl().lightness > 0.07,
         score: (ColorRgb c, double dominance) =>
-            (_distanceScore(c.toHsl().luminance, 0.05) * 2) +
+            (_distanceScore(c.toHsl().luminance, 0.06) * 2) +
             _distanceScore(c.toHsl().lightness, 0.15) +
             (dominance));
     var bgColor = bg.keys.first;

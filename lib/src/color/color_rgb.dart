@@ -65,9 +65,9 @@ class ColorRgb {
     return ColorRgb(red, green, blue, alpha);
   }
 
-  static double getHue(
+  static double? getHue(
       double red, double green, double blue, double max, double delta) {
-    double hue;
+    double? hue;
     if (max == 0.0) {
       hue = 0.0;
     } else if (max == red) {
@@ -79,7 +79,7 @@ class ColorRgb {
     }
 
     /// Set hue to 0.0 when red == green == blue.
-    hue = hue.isNaN ? 0.0 : hue;
+    hue = hue!.isNaN ? 0.0 : hue;
     return hue;
   }
 
@@ -190,7 +190,7 @@ class ColorRgb {
     if (component <= 0.03928) {
       return component / 12.92;
     }
-    return math.pow((component + 0.055) / 1.055, 2.4);
+    return math.pow((component + 0.055) / 1.055, 2.4) as double;
   }
 
   /// Get the luminance

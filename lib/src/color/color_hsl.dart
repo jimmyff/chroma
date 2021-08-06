@@ -62,7 +62,7 @@ class ColorHsl extends ColorRgb {
     final min = math.min(red, math.min(green, blue));
     final delta = max - min;
 
-    final hue = ColorRgb.getHue(red, green, blue, max, delta);
+    final hue = ColorRgb.getHue(red, green, blue, max, delta)!;
     final lightness = (max + min) / 2.0;
     // Saturation can exceed 1.0 with rounding errors, so clamp it.
     final double saturation = lightness == 1.0

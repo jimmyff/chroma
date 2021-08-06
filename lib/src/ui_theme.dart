@@ -1,13 +1,13 @@
 import 'package:image/image.dart';
 
-import 'package:chroma/color.dart';
+import '../color.dart';
 
 double _distanceScore(double v1, double v2, {bool wrapped = false}) =>
     (1 - ((v1 + (wrapped ? 1.0 : 0.0)) - (v2 + (wrapped ? 1.0 : 0.0))).abs());
 
 class UiTheme {
-  final ColorRgb bg;
-  final ColorRgb fg;
+  final ColorRgb? bg;
+  final ColorRgb? fg;
 
   UiTheme({this.bg, this.fg});
 
@@ -39,7 +39,8 @@ class UiTheme {
     return UiTheme._fromDominantColors(full: swatch, edge: edgeSwatch);
   }
 
-  factory UiTheme._fromDominantColors({ScoredColors full, ScoredColors edge}) {
+  factory UiTheme._fromDominantColors(
+      {required ScoredColors full, required ScoredColors edge}) {
     List<ColorCollectionDebug> debugData = [];
     Map<int, double> edgeBgScore = {};
 
@@ -81,35 +82,35 @@ class UiTheme {
 
 class ScoredColors {
   // color + score (cullumative)
-  final Map<ColorRgb, double> colors;
-  final NeuralQuantizer neuralQuantizer;
+  final Map<ColorRgb, double>? colors;
+  final NeuralQuantizer? neuralQuantizer;
 
   ScoredColors({this.colors, this.neuralQuantizer});
 
   void removeColors(bool Function(ColorRgb c) whereFunc) {
-    colors.removeWhere((key, value) => whereFunc(key));
+    colors!.removeWhere((key, value) => whereFunc(key));
   }
 
-  Map<ColorRgb, double> colorsWith(
-      {double Function(ColorRgb c, double dominance) score,
-      bool Function(ColorRgb c, double dominance) where}) {
+  Map<ColorRgb, double?> colorsWith(
+      {double Function(ColorRgb c, double dominance)? score,
+      bool Function(ColorRgb c, double dominance)? where}) {
     Map<ColorRgb, double> out = {};
     Map<ColorRgb, double> secondary = {};
 
-    var countMax = colors.values.first;
+    var countMax = colors!.values.first;
 
-    colors.forEach((color, count) {
+    colors!.forEach((color, count) {
       var dominance = (count / countMax);
-      if (where(color, dominance)) {
-        out[color] = score(color, dominance);
+      if (where!(color, dominance)) {
+        out[color] = score!(color, dominance);
       } else
-        secondary[color] = score(color, dominance);
+        secondary[color] = score!(color, dominance);
     });
     if (out.isEmpty) out = secondary;
 
     final sorted = out.keys.toList()
-      ..sort((c1, c2) => out[c2].compareTo(out[c1]));
-    return Map<ColorRgb, double>.fromIterables(
+      ..sort((c1, c2) => out[c2]!.compareTo(out[c1]!));
+    return Map<ColorRgb, double?>.fromIterables(
         sorted, sorted.map((e) => out[e]));
   }
 
@@ -131,17 +132,17 @@ class ScoredColors {
 
   ScoredColors _score(double ideal, double Function(ColorRgb) getValue,
       [double reward = 100.0]) {
-    var scores = colors.values.toList();
+    var scores = colors!.values.toList();
 
-    for (int i = 0, l = colors.keys.length; i < l; i++) {
+    for (int i = 0, l = colors!.keys.length; i < l; i++) {
       // print('${colors.keys.elementAt(i)} = ' +
       //     getValue(colors.keys.elementAt(i)).toString());
       var similiarity =
-          1 - ((getValue(colors.keys.elementAt(i)) - ideal).abs());
+          1 - ((getValue(colors!.keys.elementAt(i)) - ideal).abs());
       scores[i] += reward * similiarity;
     }
     return ScoredColors(
-        colors: Map.fromIterables(colors.keys, scores),
+        colors: Map.fromIterables(colors!.keys, scores),
         neuralQuantizer: neuralQuantizer);
   }
 
@@ -164,12 +165,14 @@ class ScoredColors {
 
     for (var x = 0; x < image.width; x++) {
       for (var y = 0; y < image.height; y++) {
-        colorCount[swatch.color(swatch.lookup(image.getPixel(x, y)))]++;
+        var color =
+            colorCount[swatch.color(swatch.lookup(image.getPixel(x, y)))];
+        if (color != null) color++;
       }
     }
 
     final sorted = colorCount.keys.toList()
-      ..sort((k1, k2) => colorCount[k2].compareTo(colorCount[k1]));
+      ..sort((k1, k2) => colorCount[k2]!.compareTo(colorCount[k1]!));
 
     return ScoredColors(
         neuralQuantizer: swatch,
@@ -177,19 +180,20 @@ class ScoredColors {
             sorted.map((i) =>
                 ColorRgb(getRed(i) / 255, getGreen(i) / 255, getBlue(i) / 255)),
             //ColorRgb.fromIntRGBA(i)),
-            sorted.map((c) => colorCount[c].toDouble())));
+            sorted.map((c) => colorCount[c]!.toDouble())));
   }
 }
 
 class ColorCollectionDebug {
-  final String title;
+  final String? title;
 
   /// colors and scores
-  final Map<ColorRgb, num> colors;
+  final Map<ColorRgb, num>? colors;
 
   ColorCollectionDebug({this.title, this.colors});
 
-  String colorDebugText(int color) => _colorDebug(color, colors[color]);
+  String colorDebugText(int color) =>
+      _colorDebug(color, colors![color as ColorRgb]);
 }
 
 int _boostSaturation(int color, double percentage, {double ifBelow = 1.0}) {
@@ -202,7 +206,7 @@ int _boostSaturation(int color, double percentage, {double ifBelow = 1.0}) {
 int _adjustColor(int color, double lightness) {
   final hsl = rgbToHsl(getRed(color), getGreen(color), getBlue(color));
 
-  var diffFraction = hsl[2] - lightness;
+  num diffFraction = hsl[2] - lightness;
   var newSat = hsl[1] * (1 + diffFraction);
   return Color.fromHsl(
       hsl[0], newSat < 0 ? 0 : (newSat > 1 ? 1 : newSat), lightness);
@@ -210,7 +214,7 @@ int _adjustColor(int color, double lightness) {
 
 int _incrementLightness(int color, double lightness) {
   final hsl = rgbToHsl(getRed(color), getGreen(color), getBlue(color));
-  var newLightness = hsl[2] + lightness;
+  num newLightness = hsl[2] + lightness;
   var diffFraction = hsl[2] - newLightness;
   var newSat = hsl[1] * (1 + diffFraction);
   print('old l: ${hsl[2]} new l: $newLightness');
@@ -219,7 +223,7 @@ int _incrementLightness(int color, double lightness) {
 }
 
 String _rgbFromInt(int i) => 'rgb(${getRed(i)},${getGreen(i)},${getBlue(i)})';
-String _colorDebug(int c, [num count]) {
+String _colorDebug(int c, [num? count]) {
   var hsl = rgbToHsl(getRed(c), getGreen(c), getBlue(c));
   return 'x${count != null ? count : ''} LUM:${getLuminance(c)} '
       ' H:${(hsl[0] * 100).round()} S:${(hsl[1] * 100).round()} L:${(hsl[2] * 100).round()}'

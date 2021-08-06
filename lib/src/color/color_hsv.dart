@@ -59,7 +59,7 @@ class ColorHsv extends ColorRgb {
     final min = math.min(red, math.min(green, blue));
     final delta = max - min;
 
-    final hue = ColorRgb.getHue(red, green, blue, max, delta);
+    final hue = ColorRgb.getHue(red, green, blue, max, delta)!;
     final saturation = max == 0.0 ? 0.0 : delta / max;
 
     return ColorHsv._(hue, saturation, max, red, green, blue, alpha);

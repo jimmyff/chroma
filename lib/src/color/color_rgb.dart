@@ -164,11 +164,16 @@ class ColorRgb {
       0xFFFFFFFF;
 
   /// Get an Hexadecimal representation of this color
-  String toHex() {
+  String toHex({bool alpha = true}) {
     final i = toInt();
-    final rgb = (i & 0xffffff).toRadixString(16);
-    final a = ((i & 0xff000000) >> 24).toRadixString(16);
-    return '#$rgb$a';
+    final rgb = (i & 0xffffff).toRadixString(16).padLeft(2, '0');
+    final a = alpha ? ((i & 0xff000000) >> 24).toRadixString(16) : '';
+
+    return '${(red * 255.0).round().toRadixString(16).padLeft(2, '0')}'
+        '${(green * 255.0).round().toRadixString(16).padLeft(2, '0')}'
+        '${(blue * 255.0).round().toRadixString(16).padLeft(2, '0')}';
+
+    return '$rgb$a';
   }
 
   /// Convert this color to CMYK

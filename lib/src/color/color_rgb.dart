@@ -206,11 +206,18 @@ class ColorRgb {
     return 0.2126 * R + 0.7152 * G + 0.0722 * B;
   }
 
+  static double contrastRatioFromLuminance(double l1, double l2) {
+    final light = l1 > l2 ? l1 : l2;
+    final dark = l1 == light ? l2 : l1;
+
+    return (light + 0.05) / (dark + 0.05);
+  }
+
   /// Build a Material Color shade using the given [strength].
   ///
   /// To lighten a color, set the [strength] value to < .5
   /// To darken a color, set the [strength] value to > .5
-  ColorRgb shade(double strength) {
+  ColorHsl shade(double strength) {
     final ds = 1.5 - strength;
     final hsl = toHsl();
 
@@ -237,5 +244,5 @@ class ColorRgb {
   List<ColorRgb> get analagous => toHsv().analagous;
 
   @override
-  String toString() => '$runtimeType($red, $green, $blue, $alpha)';
+  String toString() => '#' + toHex();
 }

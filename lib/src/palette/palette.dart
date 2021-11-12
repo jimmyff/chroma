@@ -27,6 +27,7 @@ class Palette {
   /// [colors] should be provided in order of dominance/priority
   static List<List<ColorRgb>> optionsFrom(List<ColorRgb> colors,
       {int options = 3, bool boostColors = true}) {
+    print('Finding options for colors $colors');
     // Score the colors
     final scored = Palette.scoreColors(colors, boostColors);
 
@@ -36,7 +37,7 @@ class Palette {
     for (final c in scored) {
       final hsl = c.colorHsl;
       final matchingDoms = dominantColors.keys
-          .where((d) => ColorHsl.hueDistance(d.colorHsl, hsl) < (360 / 12))
+          .where((d) => ColorHsl.hueDistance(d.colorHsl, hsl) < (360 / 8))
           .toList();
       if (matchingDoms.isNotEmpty) continue;
 
@@ -50,51 +51,53 @@ class Palette {
     for (final c in scored) {
       final hsl = c.colorHsl;
       final matching = complimentaries
-          .where((d) => ColorHsl.hueDistance(d.colorHsl, hsl) < (360 / 12))
+          .where((d) => ColorHsl.hueDistance(d.colorHsl, hsl) < (360 / 10))
           .toList();
       if (matching.isNotEmpty) continue;
 
       complimentaries.add(c);
     }
 
-    // Find most complimentary color for each dominant
+    // // Find most complimentary color for each dominant
     for (final d in dominantColors.keys) {
       print('Finding complimentary ${d.color}');
       Map<ColorScore, double> hueDistance = {};
       for (final c in complimentaries) {
-        hueDistance[c] =
-            ColorHsl.hueDistance(d.colorHsl, c.colorHsl) + (c._score * 4);
+        final dist = ColorHsl.hueDistance(d.colorHsl, c.colorHsl);
+        print('${c.color} dist: $dist');
+        hueDistance[c] = dist + (c._score * 4);
       }
       print('hue distances for ${d.colorHsl}');
       print(hueDistance);
       final complimentary = complimentaries
-          .where((c) =>
-              hueDistance[c]! > (360 / 4) &&
-              c.colorHsl.lightness > 0.1 &&
-              c.colorHsl.lightness < 0.9)
+          .where(
+              (c) => hueDistance[c]! > (360 / 5) && c.colorHsl.lightness > 0.1)
           .toList()
         ..sort((c1, c2) => hueDistance[c2]!.compareTo(hueDistance[c1]!));
       dominantColors[d] = complimentary.take(options).toList();
+
+      print('complimentaries for ${d.colorHsl} : ${dominantColors[d]}');
     }
 
     // Add a perfect complimentary to each as a fallback
+
     for (final d in dominantColors.keys) {
-      dominantColors[d]!
+      // Fallback
+      if (dominantColors[d]!.isEmpty || dominantColors.keys.length == 1) {
+        dominantColors[d]!
 
-        // Split complimentary color
-        ..add(ColorScore(ColorRgb.fromHex(ColorHsl((d.colorHsl.hue + 180) % 360,
-                d.colorHsl.saturation, d.colorHsl.lightness)
-            .toHex())))
+          // Split complimentary color
+          ..add(ColorScore(ColorRgb.fromHex(
+              ColorHsl((d.colorHsl.hue + 180) % 360, 0.3, 0.5).toHex())))
 
-        // Triadic color
-        ..add(ColorScore(ColorRgb.fromHex(ColorHsl((d.colorHsl.hue + 72) % 360,
-                d.colorHsl.saturation, d.colorHsl.lightness)
-            .toHex())))
+          // Triadic color
+          ..add(ColorScore(ColorRgb.fromHex(
+              ColorHsl((d.colorHsl.hue + 120) % 360, 0.3, 0.5).toHex())))
 
-        // Triadic color
-        ..add(ColorScore(ColorRgb.fromHex(ColorHsl((d.colorHsl.hue - 72) % 360,
-                d.colorHsl.saturation, d.colorHsl.lightness)
-            .toHex())));
+          // Triadic color
+          ..add(ColorScore(ColorRgb.fromHex(
+              ColorHsl((d.colorHsl.hue + 240) % 360, 0.3, 0.5).toHex())));
+      }
     }
 
     print('Dominant colors & complimentary: ');
@@ -169,7 +172,7 @@ class Palette {
         boostedColor.lightness < 0.1
             ? 0
             : (boostedColor.saturation < 0.05
-                ? Random().nextInt(360).toDouble()
+                ? Random(color.toInt()).nextInt(360).toDouble()
                 : boostedColor.hue),
         boostedColor.saturation < 0.05 ? 0.3 : boostedColor.saturation,
         boostedColor.lightness);
@@ -178,7 +181,7 @@ class Palette {
   }
 
   static ColorHsl boostColorSaturation(ColorHsl color) {
-    final desiredMinSaturation = 0.2;
+    final desiredMinSaturation = 0.25;
 
     var boostedColor = color.toHsl();
 
@@ -196,6 +199,7 @@ class Palette {
 
     // score the colours on priority
     var i = 0;
+
     for (final c in colors) {
       var color = c.toHsl();
       var boostedHue = false;

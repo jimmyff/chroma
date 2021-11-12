@@ -80,7 +80,7 @@ class ColorHsl extends ColorRgb {
   /// Lightness component
   final double lightness;
 
-  static hueDistance(ColorHsl c1, ColorHsl c2) {
+  static double hueDistance(ColorHsl c1, ColorHsl c2) {
     final distance = c1.hue > c2.hue ? (c1.hue - c2.hue) : (c2.hue - c1.hue);
     print('doms: hue distance between: $c1 and $c2 = $distance');
     return distance > 180 ? distance - 180 : distance;

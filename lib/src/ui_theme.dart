@@ -43,7 +43,7 @@ class ScoredColors {
     for (var x = 0; x < smallImage.width; x++) {
       for (var y = 0; y < smallImage.height; y++) {
         final swatchIndex = swatch.lookup(smallImage.getPixel(x, y));
-        print('$x $y $swatchIndex');
+        // print('$x $y $swatchIndex');
         // if (color != null) color++;
         if (colorCount.containsKey(swatch.color(swatchIndex)))
           colorCount[swatch.color(swatchIndex)] =
@@ -52,7 +52,7 @@ class ScoredColors {
           print('swatch index out of range: $swatchIndex');
       }
     }
-    print(colorCount);
+    // print(colorCount);
     final sorted = colorCount.keys.toList()
       ..sort((k1, k2) => colorCount[k2]!.compareTo(colorCount[k1]!));
 

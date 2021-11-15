@@ -129,7 +129,7 @@ class Palette {
 
     Map<ColorRgb, ColorRgb> tunedColours = {};
     List<List<ColorRgb>> tunedPalette = [];
-    final desiredContrastRatio = 7;
+    final desiredContrastRatio = 5.6;
 
     // Tune the colours to be suitable for white text over
     for (final d in paletteOptions) {
@@ -223,7 +223,8 @@ class Palette {
       scores[c] = score
         ..addScore(
             'Boosted', (boostedSaturation ? -0.1 : 0) + (boostedHue ? -3 : 0))
-        ..addScore('Dominance/Priority', (1 - (i++ * (1 / colors.length))));
+        ..addScore(
+            'Dominance/Priority', (1 - (i++ * (1 / colors.length))), 1.5);
     }
 
     // General scoring
@@ -250,7 +251,7 @@ class Palette {
       // Calculating relativey contrast to white
       final contrastRatio = ColorRgb.contrastRatioFromLuminance(1.0, lum);
       print('${scores[c]!.color} contrast ratio: $contrastRatio');
-      final desiredContrast = 9;
+      final desiredContrast = 6;
       final contrastScore = contrastRatio < 3.5
           ? 0.0
           : (contrastRatio > desiredContrast

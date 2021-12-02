@@ -6,6 +6,9 @@ import '../palette.dart';
 class UiTheme {
   static List<List<ColorRgb>> fromJpg(List<int> bytes, [int options = 3]) {
     final image = decodeJpg(bytes);
+    if (image == null) {
+      throw Exception('Image not decoded');
+    }
     return _fromImage(image, options);
   }
 

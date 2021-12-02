@@ -155,7 +155,7 @@ class ColorRgb {
   /// Blue component
   final double blue;
 
-  /// Get the int32 representation of this color (ARGB compatible with flutter)
+  /// Get the int32 representation of this color (RGBA compatible with flutter)
   int toInt() =>
       ((((alpha * 255.0).round() & 0xff) << 24) |
           (((red * 255.0).round() & 0xff) << 16) |

@@ -51,21 +51,42 @@ class Palette {
     for (final c in scored) {
       final hsl = c.colorHsl;
       final matching = complimentaries
-          .where((d) => ColorHsl.hueDistance(d.colorHsl, hsl) < (360 / 10))
+          .where((d) => ColorHsl.hueDistance(d.colorHsl, hsl) < (360 / 24))
           .toList();
       if (matching.isNotEmpty) continue;
-
       complimentaries.add(c);
     }
 
-    // // Find most complimentary color for each dominant
+    // // Find most complimentayyry color for each dominant
     for (final d in dominantColors.keys) {
       print('Finding complimentary ${d.color}');
       Map<ColorScore, double> hueDistance = {};
+
+      Map<int, double> idealDistancesAndScores = {
+        180: 1.0, // complimentary
+        120: 0.9, // tradic
+        110: 0.9, // split complientary
+        30: 0.7, // analogous
+      };
+
       for (final c in complimentaries) {
+        if (c.colorHsl.hue == d.colorHsl.hue) {
+          hueDistance[c] = 0;
+          continue;
+        }
         final dist = ColorHsl.hueDistance(d.colorHsl, c.colorHsl);
+
         print('${c.color} dist: $dist');
-        hueDistance[c] = dist + (c._score * 4);
+        idealDistancesAndScores.forEach((idealDist, scoreWeight) {
+          final distToIdeal =
+              (idealDist > dist ? (idealDist - dist) : (dist - idealDist));
+          double score = ((180 - distToIdeal) * scoreWeight) + (c._score * 3);
+
+          // If this is the highest for this then set it
+          if (score > (hueDistance[c] ??= 0)) {
+            hueDistance[c] = score;
+          }
+        });
       }
       print('hue distances for ${d.colorHsl}');
       print(hueDistance);
@@ -86,17 +107,35 @@ class Palette {
       if (dominantColors[d]!.isEmpty || dominantColors.keys.length == 1) {
         dominantColors[d]!
 
-          // Split complimentary color
-          ..add(ColorScore(ColorRgb.fromHex(
-              ColorHsl((d.colorHsl.hue + 180) % 360, 0.3, 0.5).toHex())))
+              // Complimentary color
+              ..add(ColorScore(ColorRgb.fromHex(
+                  ColorHsl((d.colorHsl.hue + 180) % 360, 0.3, 0.5).toHex())))
 
-          // Triadic color
-          ..add(ColorScore(ColorRgb.fromHex(
-              ColorHsl((d.colorHsl.hue + 120) % 360, 0.3, 0.5).toHex())))
+              // Triadic color
+              ..add(ColorScore(ColorRgb.fromHex(
+                  ColorHsl((d.colorHsl.hue + 120) % 360, 0.3, 0.5).toHex())))
 
-          // Triadic color
-          ..add(ColorScore(ColorRgb.fromHex(
-              ColorHsl((d.colorHsl.hue + 240) % 360, 0.3, 0.5).toHex())));
+              // Triadic color
+              ..add(ColorScore(ColorRgb.fromHex(
+                  ColorHsl((d.colorHsl.hue + 240) % 360, 0.3, 0.5).toHex())))
+
+              // Split complimentary
+              ..add(ColorScore(ColorRgb.fromHex(
+                  ColorHsl((d.colorHsl.hue + 210) % 360, 0.3, 0.5).toHex())))
+
+              // Split complimentary
+              ..add(ColorScore(ColorRgb.fromHex(
+                  ColorHsl((d.colorHsl.hue + 140) % 360, 0.3, 0.5).toHex())))
+
+              // Analogous
+              ..add(ColorScore(ColorRgb.fromHex(
+                  ColorHsl((d.colorHsl.hue + 30) % 360, 0.3, 0.5).toHex())))
+
+              // Analogous
+              ..add(ColorScore(ColorRgb.fromHex(
+                  ColorHsl((d.colorHsl.hue - 30) % 360, 0.3, 0.5).toHex())))
+            //
+            ;
       }
     }
 

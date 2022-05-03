@@ -12,6 +12,14 @@ class UiTheme {
     return _fromImage(image, options);
   }
 
+  static List<List<ColorRgb>> fromImage(List<int> bytes, [int options = 3]) {
+    final image = decodeImage(bytes);
+    if (image == null) {
+      throw Exception('Image not decoded');
+    }
+    return _fromImage(image, options);
+  }
+
   static List<List<ColorRgb>> _fromImage(Image image, [int options = 3]) {
     const smallSize = 64;
 

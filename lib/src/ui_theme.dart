@@ -13,7 +13,7 @@ class UiTheme {
   }
 
   static List<List<ColorRgb>> _fromImage(Image image, [int options = 3]) {
-    const smallSize = 32;
+    const smallSize = 64;
 
     // reduced size
     final colors = ScoredColors.fromImage(image);
@@ -33,24 +33,27 @@ class ScoredColors {
     const maxColors = 24;
 
     final smallImage =
-        copyResize(image, width: 32, interpolation: Interpolation.cubic);
+        copyResize(image, width: 64, interpolation: Interpolation.cubic);
 
     // sample factor needs to be high to detect small colors in image
     var swatch =
-        NeuralQuantizer(image, numberOfColors: maxColors, samplingFactor: 10);
+        NeuralQuantizer(image, numberOfColors: maxColors, samplingFactor: 12);
 
     // index of color, count of colours
     Map<int, int> colorCount = {};
     for (var i = 0; i < maxColors; i++) colorCount[swatch.color(i)] = 0;
 
+    // itterate over the image and count the colours...
     for (var x = 0; x < smallImage.width; x++) {
       for (var y = 0; y < smallImage.height; y++) {
         final swatchIndex = swatch.lookup(smallImage.getPixel(x, y));
+
+        final c = swatch.color(swatchIndex);
+
         // print('$x $y $swatchIndex');
         // if (color != null) color++;
         if (colorCount.containsKey(swatch.color(swatchIndex)))
-          colorCount[swatch.color(swatchIndex)] =
-              colorCount[swatch.color(swatchIndex)]! + 1;
+          colorCount[c] = colorCount[c]! + 1;
         else
           print('swatch index out of range: $swatchIndex');
       }

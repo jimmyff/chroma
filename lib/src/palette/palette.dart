@@ -24,25 +24,59 @@ class ColorScore {
 }
 
 class Palette {
+  static bool isHueBrownOrRed(hue) => hue > 352 || hue < 38;
+
   /// [colors] should be provided in order of dominance/priority
   static List<List<ColorRgb>> optionsFrom(List<ColorRgb> colors,
       {int options = 3, bool boostColors = true}) {
     print('Finding options for colors $colors');
     // Score the colors
-    final scored = Palette.scoreColors(colors, boostColors);
+    final _scored = Palette.scoreColors(colors, boostColors);
+    final scored = _scored.length > 3
+        ? _scored
+        : Palette.scoreColors(colors, boostColors, true);
+
+    print('scored colours: $scored');
 
     // find dominants
-    Map<ColorScore, List<ColorScore>> dominantColors = {};
+    Map<ColorScore, List<ColorScore>> initialDominantColors = {};
 
     for (final c in scored) {
       final hsl = c.colorHsl;
-      final matchingDoms = dominantColors.keys
-          .where((d) => ColorHsl.hueDistance(d.colorHsl, hsl) < (360 / 8))
+
+      // make sure we don't have a dominant colour too similar
+      final matchingDoms = initialDominantColors.keys
+          .where((d) =>
+              ColorHsl.hueDistance(d.colorHsl, hsl) < (360 / 24) &&
+              (d.colorHsl.saturation > hsl.saturation
+                      ? d.colorHsl.saturation - hsl.saturation
+                      : hsl.saturation - d.colorHsl.saturation) <
+                  0.3)
           .toList();
+      if (matchingDoms.isNotEmpty)
+        print('stripped: $hsl as too similar to ${matchingDoms.first}');
       if (matchingDoms.isNotEmpty) continue;
 
-      dominantColors[c] = [];
-      if (dominantColors.length >= options) break;
+      initialDominantColors[c] = [];
+      if (initialDominantColors.length >= options) break;
+    }
+
+    print('Doms: ${initialDominantColors.keys.toList()}');
+
+    // Give browns and reds less dominance
+    final sortedDoms = initialDominantColors.keys.toList()
+      ..sort((a, b) {
+        final aScore =
+            a.score + (Palette.isHueBrownOrRed(a.colorHsl.hue) ? -1 : 0);
+        final bScore =
+            b.score + (Palette.isHueBrownOrRed(b.colorHsl.hue) ? -1 : 0);
+        return bScore.compareTo(aScore);
+      });
+    print('scored and altered doms: $sortedDoms');
+
+    Map<ColorScore, List<ColorScore>> dominantColors = {};
+    for (var d in sortedDoms) {
+      dominantColors[d] = initialDominantColors[d]!;
     }
 
     // find complimentarys
@@ -50,19 +84,31 @@ class Palette {
 
     for (final c in scored) {
       final hsl = c.colorHsl;
+
+      // strip out colours that are too similar
       final matching = complimentaries
-          .where((d) => ColorHsl.hueDistance(d.colorHsl, hsl) < (360 / 24))
+          .where((d) => ColorHsl.hueDistance(d.colorHsl, hsl) < (360 / 24)
+              // &&
+              // (d.colorHsl.saturation > hsl.saturation
+              //         ? d.colorHsl.saturation - hsl.saturation
+              //         : d.colorHsl.saturation - hsl.saturation) <
+              //     -0.3
+              )
           .toList();
-      if (matching.isNotEmpty) continue;
+      if (matching.isNotEmpty) {
+        print('dom: $hsl : removing ${c.colorHsl} as too similar');
+        continue;
+      }
       complimentaries.add(c);
     }
+    print('complimentaries: $complimentaries');
 
     // // Find most complimentayyry color for each dominant
     for (final d in dominantColors.keys) {
       print('Finding complimentary ${d.color}');
       Map<ColorScore, double> hueDistance = {};
 
-      Map<int, double> idealDistancesAndScores = {
+      final Map<int, double> idealDistancesAndScores = {
         180: 1.0, // complimentary
         120: 0.9, // tradic
         110: 0.9, // split complientary
@@ -168,7 +214,7 @@ class Palette {
 
     Map<ColorRgb, ColorRgb> tunedColours = {};
     List<List<ColorRgb>> tunedPalette = [];
-    final desiredContrastRatio = 5.6;
+    final desiredContrastRatio = 5.4;
 
     // Tune the colours to be suitable for white text over
     for (final d in paletteOptions) {
@@ -220,7 +266,7 @@ class Palette {
   }
 
   static ColorHsl boostColorSaturation(ColorHsl color) {
-    final desiredMinSaturation = 0.25;
+    final desiredMinSaturation = 0.17;
 
     var boostedColor = color.toHsl();
 
@@ -233,7 +279,8 @@ class Palette {
   }
 
   /// [colors] should be provided in order of dominance/priority
-  static List<ColorScore> scoreColors(List<ColorRgb> colors, bool boostColors) {
+  static List<ColorScore> scoreColors(List<ColorRgb> colors, bool boostVibrancy,
+      [bool alterColours = false]) {
     Map<ColorRgb, ColorScore> scores = {};
 
     // score the colours on priority
@@ -241,27 +288,37 @@ class Palette {
 
     for (final c in colors) {
       var color = c.toHsl();
-      var boostedHue = false;
-      var boostedSaturation = false;
-      if (boostColors) {
-        final hueBoost = Palette.boostColorHue(color);
-        boostedHue = (color.toInt() != hueBoost.toInt());
 
-        final satBoost = Palette.boostColorSaturation(hueBoost);
-        boostedSaturation = (hueBoost.toInt() != satBoost.toInt());
+      print('Scoring color $c');
+      // strip out the really dark colours
+      // if (color.luminance < 0.05) continue;
+      if (!alterColours && color.saturation < 0.02) continue;
+      // // strip out the whites
+      if (color.lightness > 0.8) continue;
+      if (color.lightness < 0.15) continue;
+
+      var boostedSaturation = false;
+      var alteredColour = false;
+
+      if (alterColours) {
+        final hueBoost = Palette.boostColorHue(color);
+        alteredColour = (color.toInt() != hueBoost.toInt());
 
         color = hueBoost;
+      }
+      if (boostVibrancy) {
+        final satBoost = Palette.boostColorSaturation(color);
+        boostedSaturation = (color.toInt() != satBoost.toInt());
+
+        color = satBoost;
       }
       print('Boosted: $c became $color');
 
       var score = ColorScore(color);
 
-      // strip out the whites
-      if (score.colorHsl.lightness > 0.8) continue;
-
       scores[c] = score
-        ..addScore(
-            'Boosted', (boostedSaturation ? -0.1 : 0) + (boostedHue ? -3 : 0))
+        ..addScore('Boosted',
+            (boostedSaturation ? -0.7 : 0) + (alteredColour ? -1.5 : 0))
         ..addScore(
             'Dominance/Priority', (1 - (i++ * (1 / colors.length))), 1.5);
     }
@@ -302,9 +359,11 @@ class Palette {
     final sorted = scores.values.toList()
       ..sort((c1, c2) => c2.score.compareTo(c1.score));
 
+    print('--- Scored colours ---');
     for (var s in sorted) {
       print(s);
     }
+    print('--- /Scored colours ---');
     return sorted;
   }
 }

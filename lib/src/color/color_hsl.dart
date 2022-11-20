@@ -84,8 +84,8 @@ class ColorHsl extends ColorRgb {
     final distance = c1.hue > c2.hue ? (c1.hue - c2.hue) : (c2.hue - c1.hue);
     final correctedDistance =
         distance > 180 ? (180 - (distance - 180)) : distance;
-    print(
-        'doms: hue distance between: $c1 (${c1.hue}) and $c2 (${c2.hue}) = $correctedDistance ($distance)');
+    // print(
+    //     'doms: hue distance between: $c1 (${c1.hue}) and $c2 (${c2.hue}) = $correctedDistance ($distance)');
     return correctedDistance;
   }
 

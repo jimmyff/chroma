@@ -1,5 +1,8 @@
 import 'dart:math';
 import 'package:chroma/color.dart';
+import 'package:logging/logging.dart';
+
+final log = Logger('CHROMA/PALETTE');
 
 class ColorScore {
   final ColorRgb color;
@@ -29,14 +32,31 @@ class Palette {
   /// [colors] should be provided in order of dominance/priority
   static List<List<ColorRgb>> optionsFrom(List<ColorRgb> colors,
       {int options = 3, bool boostColors = true}) {
-    print('Finding options for colors $colors');
+    log.fine('Finding options for colors $colors');
     // Score the colors
-    final _scored = Palette.scoreColors(colors, boostColors);
-    final scored = _scored.length > 3
+    var _scored = Palette.scoreColors(colors, boostColors);
+    _scored = _scored.length > 3
         ? _scored
         : Palette.scoreColors(colors, boostColors, true);
 
-    print('scored colours: $scored');
+    // if we have no colours. create some choices.
+    if (_scored.isEmpty) {
+      _scored = Palette.scoreColors([
+        ColorRgb(Random().nextDouble(), Random().nextDouble(),
+            Random().nextDouble()),
+        ColorRgb(Random().nextDouble(), Random().nextDouble(),
+            Random().nextDouble()),
+        ColorRgb(Random().nextDouble(), Random().nextDouble(),
+            Random().nextDouble()),
+        ColorRgb(Random().nextDouble(), Random().nextDouble(),
+            Random().nextDouble()),
+        ColorRgb(0.5, 0.5, 0.5),
+      ], true, true);
+    }
+
+    final scored = _scored;
+
+    log.fine('scored colours: $scored');
 
     // find dominants
     Map<ColorScore, List<ColorScore>> initialDominantColors = {};
@@ -54,14 +74,14 @@ class Palette {
                   0.3)
           .toList();
       if (matchingDoms.isNotEmpty)
-        print('stripped: $hsl as too similar to ${matchingDoms.first}');
+        log.fine('stripped: $hsl as too similar to ${matchingDoms.first}');
       if (matchingDoms.isNotEmpty) continue;
 
       initialDominantColors[c] = [];
       if (initialDominantColors.length >= options) break;
     }
 
-    print('Doms: ${initialDominantColors.keys.toList()}');
+    log.fine('Doms: ${initialDominantColors.keys.toList()}');
 
     // Give browns and reds less dominance
     final sortedDoms = initialDominantColors.keys.toList()
@@ -72,7 +92,7 @@ class Palette {
             b.score + (Palette.isHueBrownOrRed(b.colorHsl.hue) ? -1 : 0);
         return bScore.compareTo(aScore);
       });
-    print('scored and altered doms: $sortedDoms');
+    log.fine('scored and altered doms: $sortedDoms');
 
     Map<ColorScore, List<ColorScore>> dominantColors = {};
     for (var d in sortedDoms) {
@@ -96,16 +116,16 @@ class Palette {
               )
           .toList();
       if (matching.isNotEmpty) {
-        print('dom: $hsl : removing ${c.colorHsl} as too similar');
+        log.fine('dom: $hsl : removing ${c.colorHsl} as too similar');
         continue;
       }
       complimentaries.add(c);
     }
-    print('complimentaries: $complimentaries');
+    log.fine('complimentaries: $complimentaries');
 
     // // Find most complimentayyry color for each dominant
     for (final d in dominantColors.keys) {
-      print('Finding complimentary ${d.color}');
+      log.fine('Finding complimentary ${d.color}');
       Map<ColorScore, double> hueDistance = {};
 
       final Map<int, double> idealDistancesAndScores = {
@@ -122,7 +142,7 @@ class Palette {
         }
         final dist = ColorHsl.hueDistance(d.colorHsl, c.colorHsl);
 
-        print('${c.color} dist: $dist');
+        log.fine('${c.color} dist: $dist');
         idealDistancesAndScores.forEach((idealDist, scoreWeight) {
           final distToIdeal =
               (idealDist > dist ? (idealDist - dist) : (dist - idealDist));
@@ -134,8 +154,8 @@ class Palette {
           }
         });
       }
-      print('hue distances for ${d.colorHsl}');
-      print(hueDistance);
+      log.fine('hue distances for ${d.colorHsl}');
+      log.fine(hueDistance);
       final complimentary = complimentaries
           .where(
               (c) => hueDistance[c]! > (360 / 5) && c.colorHsl.lightness > 0.1)
@@ -143,7 +163,7 @@ class Palette {
         ..sort((c1, c2) => hueDistance[c2]!.compareTo(hueDistance[c1]!));
       dominantColors[d] = complimentary.take(options).toList();
 
-      print('complimentaries for ${d.colorHsl} : ${dominantColors[d]}');
+      log.fine('complimentaries for ${d.colorHsl} : ${dominantColors[d]}');
     }
 
     // Add a perfect complimentary to each as a fallback
@@ -185,8 +205,9 @@ class Palette {
       }
     }
 
-    print('Dominant colors & complimentary: ');
-    print(dominantColors.keys.map((d) => '${d.color} : ${dominantColors[d]}'));
+    log.fine('Dominant colors & complimentary: ');
+    log.fine(
+        dominantColors.keys.map((d) => '${d.color} : ${dominantColors[d]}'));
 
     final noMoreColors = false;
 
@@ -209,8 +230,8 @@ class Palette {
       if (paletteOptions.length >= options) break;
     }
 
-    print('paletteOptions: ');
-    print(paletteOptions.map((d) => '$d'));
+    log.fine('paletteOptions: ');
+    log.fine(paletteOptions.map((d) => '$d'));
 
     Map<ColorRgb, ColorRgb> tunedColours = {};
     List<List<ColorRgb>> tunedPalette = [];
@@ -242,8 +263,8 @@ class Palette {
       tunedPalette.add([tunedColours[d[0]]!, tunedColours[d[1]]!]);
     }
 
-    print('tunedPalette: ');
-    print(tunedPalette.map((d) => '$d'));
+    log.fine('tunedPalette: ');
+    log.fine(tunedPalette.map((d) => '$d'));
 
     return tunedPalette;
   }
@@ -289,7 +310,7 @@ class Palette {
     for (final c in colors) {
       var color = c.toHsl();
 
-      print('Scoring color $c');
+      log.fine('Scoring color $c');
       // strip out the really dark colours
       // if (color.luminance < 0.05) continue;
       if (!alterColours && color.saturation < 0.02) continue;
@@ -312,7 +333,7 @@ class Palette {
 
         color = satBoost;
       }
-      print('Boosted: $c became $color');
+      log.fine('Boosted: $c became $color');
 
       var score = ColorScore(color);
 
@@ -323,13 +344,15 @@ class Palette {
             'Dominance/Priority', (1 - (i++ * (1 / colors.length))), 1.5);
     }
 
+    log.fine('Scored: ${scores.length} options');
+
     // General scoring
     for (final c in scores.keys) {
       final hsl = c.toHsl();
 
       // score on closness to desired luminosity
       final lum = c.luminance;
-      print('${scores[c]!.color} with lum: $lum');
+      log.fine('${scores[c]!.color} with lum: $lum');
       final luminanceDeviation = lum > 0.3 ? lum - 0.3 : 0.3 - lum;
       scores[c]!.addScore('Luminance', 1 - luminanceDeviation);
 
@@ -346,7 +369,7 @@ class Palette {
 
       // Calculating relativey contrast to white
       final contrastRatio = ColorRgb.contrastRatioFromLuminance(1.0, lum);
-      print('${scores[c]!.color} contrast ratio: $contrastRatio');
+      log.fine('${scores[c]!.color} contrast ratio: $contrastRatio');
       final desiredContrast = 6;
       final contrastScore = contrastRatio < 3.5
           ? 0.0
@@ -359,11 +382,11 @@ class Palette {
     final sorted = scores.values.toList()
       ..sort((c1, c2) => c2.score.compareTo(c1.score));
 
-    print('--- Scored colours ---');
+    log.fine('--- Scored colours ---');
     for (var s in sorted) {
-      print(s);
+      log.fine(s);
     }
-    print('--- /Scored colours ---');
+    log.fine('--- /Scored colours ---');
     return sorted;
   }
 }

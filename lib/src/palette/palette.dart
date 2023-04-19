@@ -86,10 +86,12 @@ class Palette {
     // Give browns and reds less dominance
     final sortedDoms = initialDominantColors.keys.toList()
       ..sort((a, b) {
+        log.info('a.colorHsl.hue: ${a.colorHsl.hue} a.score: ${a.score}');
+        log.info('b.colorHsl.hue: ${b.colorHsl.hue} b.score: ${b.score}');
         final aScore =
-            a.score + (Palette.isHueBrownOrRed(a.colorHsl.hue) ? -1 : 0);
+            a.score + (Palette.isHueBrownOrRed(a.colorHsl.hue) ? -2 : 0);
         final bScore =
-            b.score + (Palette.isHueBrownOrRed(b.colorHsl.hue) ? -1 : 0);
+            b.score + (Palette.isHueBrownOrRed(b.colorHsl.hue) ? -2 : 0);
         return bScore.compareTo(aScore);
       });
     log.fine('scored and altered doms: $sortedDoms');

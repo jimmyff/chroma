@@ -1,26 +1,28 @@
-import 'package:image/image.dart';
+import 'dart:typed_data';
+
+import 'package:image/image.dart' as img;
 
 import '../color.dart';
 import '../palette.dart';
 
 class UiTheme {
-  static List<List<ColorRgb>> fromJpg(List<int> bytes, [int options = 3]) {
-    final image = decodeJpg(bytes);
+  static List<List<ColorRgb>> fromJpg(Uint8List bytes, [int options = 3]) {
+    final image = img.decodeJpg(bytes);
     if (image == null) {
       throw Exception('Image not decoded');
     }
     return _fromImage(image, options);
   }
 
-  static List<List<ColorRgb>> fromImage(List<int> bytes, [int options = 3]) {
-    final image = decodeImage(bytes);
+  static List<List<ColorRgb>> fromImage(Uint8List bytes, [int options = 3]) {
+    final image = img.decodeImage(bytes);
     if (image == null) {
       throw Exception('Image not decoded');
     }
     return _fromImage(image, options);
   }
 
-  static List<List<ColorRgb>> _fromImage(Image image, [int options = 3]) {
+  static List<List<ColorRgb>> _fromImage(img.Image image, [int options = 3]) {
     const smallSize = 64;
 
     // reduced size
@@ -33,37 +35,43 @@ class UiTheme {
 class ScoredColors {
   // color + score (cullumative)
   final Map<ColorRgb, double>? colors;
-  final NeuralQuantizer? neuralQuantizer;
+  final img.NeuralQuantizer? neuralQuantizer;
 
   ScoredColors({this.colors, this.neuralQuantizer});
 
-  factory ScoredColors.fromImage(Image image) {
+  factory ScoredColors.fromImage(img.Image image) {
     const maxColors = 24;
 
-    final smallImage =
-        copyResize(image, width: 64, interpolation: Interpolation.cubic);
+    final smallImage = img.copyResize(image,
+        width: 64, interpolation: img.Interpolation.cubic);
 
     // sample factor needs to be high to detect small colors in image
-    var swatch =
-        NeuralQuantizer(image, numberOfColors: maxColors, samplingFactor: 12);
+    var swatch = img.NeuralQuantizer(image,
+        numberOfColors: maxColors, samplingFactor: 12);
 
-    // index of color, count of colours
+    // <Color(int)>, <count of colours>
     Map<int, int> colorCount = {};
-    for (var i = 0; i < maxColors; i++) colorCount[swatch.color(i)] = 0;
+    for (var i = 0; i < maxColors; i++)
+      colorCount[img.rgbaToUint32(
+        swatch.palette.getRed(i).round(),
+        swatch.palette.getGreen(i).round(),
+        swatch.palette.getBlue(i).round(),
+        swatch.palette.getAlpha(i).round(),
+      )] = 0;
 
     // itterate over the image and count the colours...
     for (var x = 0; x < smallImage.width; x++) {
       for (var y = 0; y < smallImage.height; y++) {
-        final swatchIndex = swatch.lookup(smallImage.getPixel(x, y));
-
-        final c = swatch.color(swatchIndex);
+        final qc = swatch.getQuantizedColor(smallImage.getPixel(x, y));
+        final ci = img.rgbaToUint32(
+            qc.r.toInt(), qc.g.toInt(), qc.b.toInt(), qc.a.toInt());
 
         // print('$x $y $swatchIndex');
         // if (color != null) color++;
-        if (colorCount.containsKey(swatch.color(swatchIndex)))
-          colorCount[c] = colorCount[c]! + 1;
+        if (colorCount.containsKey(ci))
+          colorCount[ci] = colorCount[ci]! + 1;
         else
-          print('swatch index out of range: $swatchIndex');
+          throw Exception('Swatch does not contain color: $ci');
       }
     }
     // print(colorCount);
@@ -73,8 +81,8 @@ class ScoredColors {
     return ScoredColors(
         neuralQuantizer: swatch,
         colors: Map.fromIterables(
-            sorted.map((i) =>
-                ColorRgb(getRed(i) / 255, getGreen(i) / 255, getBlue(i) / 255)),
+            sorted.map((i) => ColorRgb(img.uint32ToRed(i) / 255,
+                img.uint32ToGreen(i) / 255, img.uint32ToBlue(i) / 255)),
             //ColorRgb.fromIntRGBA(i)),
             sorted.map((c) => colorCount[c]!.toDouble())));
   }

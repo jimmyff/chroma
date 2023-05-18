@@ -14,7 +14,14 @@ class UiTheme {
     return _fromImage(image, options);
   }
 
-  static List<List<ColorRgb>> fromImage(Uint8List bytes, [int options = 3]) {
+  static List<List<ColorRgb>> fromImage(img.Image image, [int options = 3]) {
+    if (image == null) {
+      throw Exception('Image not decoded');
+    }
+    return _fromImage(image, options);
+  }
+
+  static List<List<ColorRgb>> fromBytes(Uint8List bytes, [int options = 3]) {
     final image = img.decodeImage(bytes);
     if (image == null) {
       throw Exception('Image not decoded');
